@@ -1,0 +1,43 @@
+name: CI_cmake
+
+on:
+  # Trigger the workflow on push or pull requests, but only for the
+  # master branch
+  push:
+    branches:
+    - master
+    - '*/ci'
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  linux:
+    name: linux cmake ${{ matrix.compiler.CC }} ${{ matrix.build.name }}
+    runs-on: 'ubuntu-latest'
+    env: ${{ matrix.compiler }}
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+        - CC: clang
+        - CC: gcc-8
+          CFLAGS: "-Wno-error=undef -Wno-error=conversion"
+        - CC: gcc-9
+          CFLAGS: "-Wno-error=undef -Wno-error=conversion"
+        build:
+        - name: OpenSSL
+          install: libnghttp2-dev libssl-dev
+          generate: -DCURL_DISABLE_LDAP=ON -DCURL_DISABLE_LDAPS=ON
+    steps:
+    - run: sudo apt install -yq ${{ matrix.build.install }}
+      name: 'Install SSL'
+
+    - uses: actions/checkout@v2
+
+    - run: cmake -H. -Bbuild -DCURL_WERROR=ON -DPICKY_COMPILER=ON ${{ matrix.build.generate }}
+      name: 'cmake generate'
+
+    - run: cmake --build build --parallel
+      name: 'cmake build'
